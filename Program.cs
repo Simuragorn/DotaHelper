@@ -22,7 +22,7 @@ internal class Program
             var profileService = new UserProfileService(userStorageService, validator);
             var openDotaService = new OpenDotaService(httpClient);
 
-            var draftMenu = new DraftMenu();
+            var draftMenu = new DraftMenu(heroStorageService);
             var profileMenu = new ProfileMenu(profileService, validator, openDotaService);
             var refetchHeroesMenu = new RefetchHeroesMenu(openDotaService, heroStorageService);
             var mainMenu = new MainMenu(draftMenu, profileMenu, refetchHeroesMenu, profileService, openDotaService);
