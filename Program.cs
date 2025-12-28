@@ -1,7 +1,6 @@
 ﻿using DotaHelper.Menu;
 using DotaHelper.Models;
 using DotaHelper.Services;
-using DotaHelper.Validation;
 
 namespace DotaHelper;
 
@@ -15,15 +14,12 @@ internal class Program
 
         try
         {
+            var cookieContainer = new System.Net.CookieContainer();
             var httpClient = new HttpClient();
-            var userStorageService = new JsonStorageService<UserProfile>("settings.json");
             var heroStorageService = new JsonStorageService<List<Hero>>("heroes.json");
             var patchStorageService = new JsonStorageService<Patch>("patch.json");
             var dotabuffStatsStorage = new JsonStorageService<DotabuffStatsData>("dotabuff-stats.json");
-            var validator = new DotaIdValidator();
-            var profileService = new UserProfileService(userStorageService, validator);
-            var openDotaService = new OpenDotaService(httpClient);
-            var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage);
+            using var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage);
 
             var patchMenu = new PatchMenu(patchStorageService);
 
@@ -34,31 +30,26 @@ internal class Program
                 currentPatch = patchStorageService.Load();
             }
 
-            if (!heroStorageService.Exists())
-            {
-                Console.WriteLine("Fetching heroes data from OpenDota API...");
-                var heroes = await openDotaService.GetAllHeroesAsync();
-
-                if (heroes != null && heroes.Count > 0)
-                {
-                    heroStorageService.Save(heroes);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"✓ {heroes.Count} heroes fetched and saved locally.");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Failed to fetch heroes data. The application may not work correctly.");
-                    Console.ResetColor();
-                }
-            }
-
             List<DotabuffHeroStats> dotabuffStats;
 
             if (!dotabuffService.HasValidCache(currentPatch?.Version ?? ""))
             {
-                Console.WriteLine("Fetching Dotabuff statistics...");
+                var cachedData = dotabuffStatsStorage.Load();
+
+                if (cachedData == null || cachedData.Stats == null || cachedData.Stats.Count == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("No statistics found. Fetching from Dotabuff...");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    var daysSinceLastFetch = (DateTime.UtcNow - cachedData.LastFetched).Days;
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Statistics are {daysSinceLastFetch} day(s) old. Fetching fresh data from Dotabuff...");
+                    Console.ResetColor();
+                }
+
                 var fetchedStats = await dotabuffService.FetchHeroStatsAsync(currentPatch?.Version ?? "");
 
                 if (fetchedStats == null)
@@ -75,13 +66,15 @@ internal class Program
             }
             else
             {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Using cached statistics (less than 1 day old).");
+                Console.ResetColor();
                 dotabuffStats = dotabuffService.GetCachedStats() ?? new List<DotabuffHeroStats>();
             }
 
             var refetchStatsMenu = new RefetchStatsMenu(dotabuffService, patchStorageService);
-            var draftMenu = new DraftMenu(heroStorageService, openDotaService, profileService, dotabuffStats);
-            var profileMenu = new ProfileMenu(profileService, validator, openDotaService);
-            var mainMenu = new MainMenu(draftMenu, profileMenu, patchMenu, refetchStatsMenu, patchStorageService, profileService, openDotaService);
+            var draftMenu = new DraftMenu(heroStorageService, dotabuffStats, dotabuffService, patchStorageService);
+            var mainMenu = new MainMenu(draftMenu, patchMenu, refetchStatsMenu, patchStorageService, dotabuffStatsStorage);
 
             await mainMenu.ExecuteAsync();
         }

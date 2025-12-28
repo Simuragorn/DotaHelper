@@ -6,21 +6,21 @@ namespace DotaHelper.Menu;
 public class DraftMenu : IMenu
 {
     private readonly IStorageService<List<Hero>> _heroStorageService;
-    private readonly IOpenDotaService _openDotaService;
-    private readonly IUserProfileService _profileService;
     private readonly List<DotabuffHeroStats> _dotabuffStats;
+    private readonly IDotabuffService _dotabuffService;
+    private readonly IStorageService<Patch> _patchStorageService;
     private List<Hero>? _heroes;
 
     public DraftMenu(
         IStorageService<List<Hero>> heroStorageService,
-        IOpenDotaService openDotaService,
-        IUserProfileService profileService,
-        List<DotabuffHeroStats> dotabuffStats)
+        List<DotabuffHeroStats> dotabuffStats,
+        IDotabuffService dotabuffService,
+        IStorageService<Patch> patchStorageService)
     {
         _heroStorageService = heroStorageService;
-        _openDotaService = openDotaService;
-        _profileService = profileService;
         _dotabuffStats = dotabuffStats;
+        _dotabuffService = dotabuffService;
+        _patchStorageService = patchStorageService;
     }
 
     public void Display()
@@ -40,7 +40,7 @@ public class DraftMenu : IMenu
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("No heroes data found.");
             Console.ResetColor();
-            Console.WriteLine("Please use \"Refetch Heroes\" option from main menu first.");
+            Console.WriteLine("Please use \"Refetch heroes statistic\" option from main menu first.");
             Console.WriteLine("\nPress any key to return to main menu...");
             Console.ReadKey();
             return;
@@ -148,24 +148,34 @@ public class DraftMenu : IMenu
 
     private async Task DisplayCounterPicksAsync(Hero selectedHero)
     {
-        var profile = _profileService.GetProfile();
-        if (profile == null)
+        var heroStats = _dotabuffStats.FirstOrDefault(h => h.Id == selectedHero.Id);
+        if (heroStats == null || string.IsNullOrEmpty(heroStats.HeroUrl))
         {
-            Console.WriteLine("\nNo user profile found. Cannot load play history.");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Hero URL not found in Dotabuff stats.");
+            Console.ResetColor();
+            return;
+        }
+
+        var currentPatch = _patchStorageService.Load();
+        if (currentPatch == null || string.IsNullOrEmpty(currentPatch.Version))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Patch version not found.");
+            Console.ResetColor();
             return;
         }
 
         while (true)
         {
-            Console.WriteLine("\nProcessing matchup data...");
+            Console.WriteLine("\nFetching counter data from Dotabuff...");
 
-            var playerHeroes = await _openDotaService.GetPlayerHeroesAsync(profile.DotaId);
-            var matchups = await _openDotaService.GetHeroMatchupsAsync(selectedHero.Id);
+            var counters = await _dotabuffService.FetchHeroCountersAsync(heroStats.HeroUrl, currentPatch.Version);
 
-            if (matchups == null || matchups.Count == 0)
+            if (counters == null || counters.Count == 0)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Failed to fetch matchup data.");
+                Console.WriteLine("Failed to fetch counter data from Dotabuff.");
                 Console.ResetColor();
                 Console.Write("\nRetry? (y/n): ");
                 string? response = Console.ReadLine()?.Trim().ToLower();
@@ -178,135 +188,70 @@ public class DraftMenu : IMenu
                 continue;
             }
 
-            var counterPicks = ProcessCounterPicks(matchups, playerHeroes, _dotabuffStats);
+            var counterPicks = ProcessCounterPicks(counters);
             DisplayCounterPicksTable(selectedHero, counterPicks);
             break;
         }
     }
 
-    private List<CounterPickInfo> ProcessCounterPicks(List<HeroMatchup> matchups, List<PlayerHero>? playerHeroes, List<DotabuffHeroStats> dotabuffStats)
+    private List<CounterPickInfo> ProcessCounterPicks(List<DotabuffCounter> counters)
     {
         var counterPicks = new List<CounterPickInfo>();
 
-        foreach (var matchup in matchups)
+        foreach (var counter in counters)
         {
-            var hero = _heroes?.FirstOrDefault(h => h.Id == matchup.HeroId);
+            var hero = _heroes?.FirstOrDefault(h => h.Id == counter.HeroId);
             if (hero == null) continue;
 
-            if (matchup.GamesPlayed < 50) continue;
-
-            var stats = dotabuffStats.FirstOrDefault(hs => hs.Id == matchup.HeroId);
-            if (stats == null) continue;
-
-            var playerHero = playerHeroes?.FirstOrDefault(ph => ph.HeroId == matchup.HeroId);
-
-            double matchupWinRate = CalculateWinRate(matchup.GamesPlayed, matchup.Wins);
-            double avgWinRate = stats.WinRate;
-            double advantage = matchupWinRate - avgWinRate;
-            if (hero.Name == "npc_dota_hero_earthshaker")
-            {
-                ;
-            }
             var counterPick = new CounterPickInfo
             {
                 Hero = hero,
-                Advantage = advantage,
-                UserGames = playerHero?.Games,
-                LastPlayed = playerHero?.LastPlayed,
-                NeverPlayed = playerHero == null || playerHero.Games == 0
+                Disadvantage = counter.Disadvantage
             };
 
             counterPicks.Add(counterPick);
         }
 
-        var goodCounters = counterPicks.Where(cp => cp.Advantage >= 0).ToList();
-
-        var playedBadCounters = counterPicks
-            .Where(cp => cp.Advantage < 0 && !cp.NeverPlayed)
-            .Take(3)
-            .ToList();
-
-        var allDisplayed = goodCounters.Concat(playedBadCounters).ToList();
-
-        return allDisplayed
-            .OrderBy(cp => GetColorPriority(cp))
-            .ThenByDescending(cp => cp.Advantage)
+        return counterPicks
+            .OrderBy(cp => cp.Disadvantage)
             .ToList();
     }
 
-    private int GetColorPriority(CounterPickInfo pick)
-    {
-        if (!pick.NeverPlayed && pick.LastPlayed.HasValue && IsPlayedRecently(pick.LastPlayed.Value))
-        {
-            return 0;
-        }
-        else if (!pick.NeverPlayed)
-        {
-            return 1;
-        }
-        else
-        {
-            return 2;
-        }
-    }
-
-    private double CalculateWinRate(int gamesPlayed, int wins)
-    {
-        if (gamesPlayed == 0) return 0;
-        return (wins / (double)gamesPlayed) * 100;
-    }
 
     private void DisplayCounterPicksTable(Hero selectedHero, List<CounterPickInfo> counterPicks)
     {
-        Console.WriteLine($"\n=== Counter Picks Against {selectedHero.LocalizedName} ===\n");
+        Console.WriteLine($"\n=== Counters for {selectedHero.LocalizedName} ===\n");
 
-        Console.WriteLine($"{"Hero",-25} {"Advantage",12}");
-        Console.WriteLine(new string('-', 42));
+        Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
+        Console.WriteLine(new string('-', 44));
 
         foreach (var pick in counterPicks)
         {
-            SetPlayHistoryColor(pick);
             Console.Write($"{pick.Hero.LocalizedName,-25}");
-            Console.ResetColor();
 
             Console.Write(" ");
-            SetAdvantageColor(pick.Advantage);
-            Console.Write($"{pick.Advantage,11:+0.0;-0.0;+0.0}%");
+            SetDisadvantageColor(pick.Disadvantage);
+            Console.Write($"{pick.Disadvantage,13:0.00}%");
             Console.ResetColor();
 
             Console.WriteLine();
         }
     }
 
-    private void SetPlayHistoryColor(CounterPickInfo pick)
-    {
-        if (pick.NeverPlayed)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-        }
-        else if (pick.LastPlayed.HasValue && IsPlayedRecently(pick.LastPlayed.Value))
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-        }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-        }
-    }
 
-    private void SetAdvantageColor(double advantage)
+    private void SetDisadvantageColor(double disadvantage)
     {
-        if (advantage >= 4)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-        }
-        else if (advantage >= 2)
+        if (disadvantage > 3)
         {
             Console.ForegroundColor = ConsoleColor.Green;
         }
-        else if (advantage >= 0)
+        else if (disadvantage > 1)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
+        }
+        else if (disadvantage > -0.5)
+        {
+            Console.ForegroundColor = ConsoleColor.White;
         }
         else
         {
@@ -314,35 +259,10 @@ public class DraftMenu : IMenu
         }
     }
 
-    private void SetWinRateColor(double winRate)
-    {
-        if (winRate > 50)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-        }
-        else if (winRate >= 48)
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-        }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-        }
-    }
-
-    private bool IsPlayedRecently(long lastPlayed)
-    {
-        var lastPlayedDate = DateTimeOffset.FromUnixTimeSeconds(lastPlayed);
-        var oneWeekAgo = DateTimeOffset.UtcNow.AddDays(-7);
-        return lastPlayedDate >= oneWeekAgo;
-    }
 
     private class CounterPickInfo
     {
         public Hero Hero { get; set; } = null!;
-        public double Advantage { get; set; }
-        public int? UserGames { get; set; }
-        public long? LastPlayed { get; set; }
-        public bool NeverPlayed { get; set; }
+        public double Disadvantage { get; set; }
     }
 }

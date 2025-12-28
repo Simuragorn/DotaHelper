@@ -6,26 +6,21 @@ namespace DotaHelper.Menu;
 public class MainMenu : IMenu
 {
     private readonly DraftMenu _draftMenu;
-    private readonly ProfileMenu _profileMenu;
     private readonly PatchMenu _patchMenu;
     private readonly RefetchStatsMenu _refetchStatsMenu;
     private readonly IStorageService<Patch> _patchStorageService;
-    private readonly IUserProfileService _profileService;
-    private readonly IOpenDotaService _openDotaService;
+    private readonly IStorageService<DotabuffStatsData> _dotabuffStatsStorageService;
     private bool _isFirstRun = true;
-    private string? _personaName;
-    private bool _hasMatches;
     private string? _currentPatch;
+    private DateTime? _lastFetchedStats;
 
-    public MainMenu(DraftMenu draftMenu, ProfileMenu profileMenu, PatchMenu patchMenu, RefetchStatsMenu refetchStatsMenu, IStorageService<Patch> patchStorageService, IUserProfileService profileService, IOpenDotaService openDotaService)
+    public MainMenu(DraftMenu draftMenu, PatchMenu patchMenu, RefetchStatsMenu refetchStatsMenu, IStorageService<Patch> patchStorageService, IStorageService<DotabuffStatsData> dotabuffStatsStorageService)
     {
         _draftMenu = draftMenu;
-        _profileMenu = profileMenu;
         _patchMenu = patchMenu;
         _refetchStatsMenu = refetchStatsMenu;
         _patchStorageService = patchStorageService;
-        _profileService = profileService;
-        _openDotaService = openDotaService;
+        _dotabuffStatsStorageService = dotabuffStatsStorageService;
     }
 
     public void Display()
@@ -37,37 +32,43 @@ public class MainMenu : IMenu
         {
             Console.Write("Patch: ");
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(_currentPatch);
+            Console.Write(_currentPatch);
             Console.ResetColor();
-        }
 
-        if (!string.IsNullOrEmpty(_personaName))
-        {
-            Console.Write("Welcome, ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write(_personaName);
-            Console.ResetColor();
-            Console.WriteLine("!");
+            Console.Write(" (");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
 
-            if (_hasMatches)
+            if (_lastFetchedStats.HasValue)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Matches loaded successfully");
-                Console.ResetColor();
+                var daysDiff = (DateTime.UtcNow - _lastFetchedStats.Value).Days;
+
+                if (daysDiff == 0)
+                {
+                    Console.Write("statistic fetched today");
+                }
+                else if (daysDiff == 1)
+                {
+                    Console.Write("statistic fetched 1 day ago");
+                }
+                else
+                {
+                    Console.Write($"statistic fetched {daysDiff} days ago");
+                }
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("No matches found");
-                Console.ResetColor();
-                Console.WriteLine("Please allow Expose Public Match Data in Dota privacy settings and refresh statistic in opendota profile");
+                Console.Write("statistic fetched never");
             }
+
+            Console.ResetColor();
+            Console.Write(")");
+            Console.WriteLine();
         }
+
         Console.WriteLine("\n1. Draft");
-        Console.WriteLine("2. Profile");
-        Console.WriteLine("3. Change Patch");
-        Console.WriteLine("4. Refetch Stats");
-        Console.WriteLine("5. Exit");
+        Console.WriteLine("2. Change Patch");
+        Console.WriteLine("3. Refetch heroes statistic");
+        Console.WriteLine("0. Exit");
         Console.Write("\nSelect an option: ");
     }
 
@@ -78,24 +79,7 @@ public class MainMenu : IMenu
             _isFirstRun = false;
 
             LoadPatch();
-
-            if (_profileService.HasProfile())
-            {
-                var profile = _profileService.GetProfile();
-                if (profile != null)
-                {
-                    await LoadPlayerDataAsync(profile.DotaId);
-                }
-            }
-            else
-            {
-                await _profileMenu.ExecuteAsync();
-                var profile = _profileService.GetProfile();
-                if (profile != null)
-                {
-                    await LoadPlayerDataAsync(profile.DotaId);
-                }
-            }
+            LoadStatsTime();
         }
 
         while (true)
@@ -111,21 +95,15 @@ public class MainMenu : IMenu
                     await _draftMenu.ExecuteAsync();
                     break;
                 case "2":
-                    await _profileMenu.ExecuteAsync();
-                    var profile = _profileService.GetProfile();
-                    if (profile != null)
-                    {
-                        await LoadPlayerDataAsync(profile.DotaId);
-                    }
-                    break;
-                case "3":
                     await _patchMenu.ExecuteAsync();
                     LoadPatch();
+                    LoadStatsTime();
                     break;
-                case "4":
+                case "3":
                     await _refetchStatsMenu.ExecuteAsync();
+                    LoadStatsTime();
                     break;
-                case "5":
+                case "0":
                     Console.WriteLine("\nGoodbye!");
                     return;
                 default:
@@ -137,17 +115,15 @@ public class MainMenu : IMenu
         }
     }
 
-    private async Task LoadPlayerDataAsync(string dotaId)
-    {
-        _personaName = await _openDotaService.GetPlayerPersonaNameAsync(dotaId);
-
-        var heroes = await _openDotaService.GetPlayerHeroesAsync(dotaId);
-        _hasMatches = heroes != null && heroes.Any(h => h.Games > 0);
-    }
-
     private void LoadPatch()
     {
         var patch = _patchStorageService.Load();
         _currentPatch = patch?.Version;
+    }
+
+    private void LoadStatsTime()
+    {
+        var statsData = _dotabuffStatsStorageService.Load();
+        _lastFetchedStats = statsData?.LastFetched;
     }
 }

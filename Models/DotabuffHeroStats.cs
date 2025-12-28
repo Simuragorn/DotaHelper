@@ -6,6 +6,8 @@ public class DotabuffHeroStats
 
     public string LocalizedName { get; set; } = string.Empty;
 
+    public string HeroUrl { get; set; } = string.Empty;
+
     public double WinRate { get; set; }
 
     public double PickRateCoreMid { get; set; }
