@@ -104,4 +104,27 @@ public class OpenDotaService : IOpenDotaService
             return null;
         }
     }
+
+    public async Task<List<HeroStats>?> GetHeroStatsAsync()
+    {
+        try
+        {
+            string url = "https://api.opendota.com/api/heroStats";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            string json = await response.Content.ReadAsStringAsync();
+            var heroStats = JsonSerializer.Deserialize<List<HeroStats>>(json);
+
+            return heroStats;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

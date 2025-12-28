@@ -8,16 +8,19 @@ public class DraftMenu : IMenu
     private readonly IStorageService<List<Hero>> _heroStorageService;
     private readonly IOpenDotaService _openDotaService;
     private readonly IUserProfileService _profileService;
+    private readonly List<DotabuffHeroStats> _dotabuffStats;
     private List<Hero>? _heroes;
 
     public DraftMenu(
         IStorageService<List<Hero>> heroStorageService,
         IOpenDotaService openDotaService,
-        IUserProfileService profileService)
+        IUserProfileService profileService,
+        List<DotabuffHeroStats> dotabuffStats)
     {
         _heroStorageService = heroStorageService;
         _openDotaService = openDotaService;
         _profileService = profileService;
+        _dotabuffStats = dotabuffStats;
     }
 
     public void Display()
@@ -175,13 +178,13 @@ public class DraftMenu : IMenu
                 continue;
             }
 
-            var counterPicks = ProcessCounterPicks(matchups, playerHeroes);
+            var counterPicks = ProcessCounterPicks(matchups, playerHeroes, _dotabuffStats);
             DisplayCounterPicksTable(selectedHero, counterPicks);
             break;
         }
     }
 
-    private List<CounterPickInfo> ProcessCounterPicks(List<HeroMatchup> matchups, List<PlayerHero>? playerHeroes)
+    private List<CounterPickInfo> ProcessCounterPicks(List<HeroMatchup> matchups, List<PlayerHero>? playerHeroes, List<DotabuffHeroStats> dotabuffStats)
     {
         var counterPicks = new List<CounterPickInfo>();
 
@@ -190,12 +193,24 @@ public class DraftMenu : IMenu
             var hero = _heroes?.FirstOrDefault(h => h.Id == matchup.HeroId);
             if (hero == null) continue;
 
+            if (matchup.GamesPlayed < 50) continue;
+
+            var stats = dotabuffStats.FirstOrDefault(hs => hs.Id == matchup.HeroId);
+            if (stats == null) continue;
+
             var playerHero = playerHeroes?.FirstOrDefault(ph => ph.HeroId == matchup.HeroId);
 
+            double matchupWinRate = CalculateWinRate(matchup.GamesPlayed, matchup.Wins);
+            double avgWinRate = stats.WinRate;
+            double advantage = matchupWinRate - avgWinRate;
+            if (hero.Name == "npc_dota_hero_earthshaker")
+            {
+                ;
+            }
             var counterPick = new CounterPickInfo
             {
                 Hero = hero,
-                WinRate = CalculateWinRate(matchup.GamesPlayed, matchup.Wins),
+                Advantage = advantage,
                 UserGames = playerHero?.Games,
                 LastPlayed = playerHero?.LastPlayed,
                 NeverPlayed = playerHero == null || playerHero.Games == 0
@@ -204,10 +219,10 @@ public class DraftMenu : IMenu
             counterPicks.Add(counterPick);
         }
 
-        var goodCounters = counterPicks.Where(cp => cp.WinRate >= 50).ToList();
+        var goodCounters = counterPicks.Where(cp => cp.Advantage >= 0).ToList();
 
         var playedBadCounters = counterPicks
-            .Where(cp => cp.WinRate < 50 && !cp.NeverPlayed)
+            .Where(cp => cp.Advantage < 0 && !cp.NeverPlayed)
             .Take(3)
             .ToList();
 
@@ -215,7 +230,7 @@ public class DraftMenu : IMenu
 
         return allDisplayed
             .OrderBy(cp => GetColorPriority(cp))
-            .ThenByDescending(cp => cp.WinRate)
+            .ThenByDescending(cp => cp.Advantage)
             .ToList();
     }
 
@@ -245,8 +260,8 @@ public class DraftMenu : IMenu
     {
         Console.WriteLine($"\n=== Counter Picks Against {selectedHero.LocalizedName} ===\n");
 
-        Console.WriteLine($"{"Hero",-25} {"Win Rate",10}");
-        Console.WriteLine(new string('-', 40));
+        Console.WriteLine($"{"Hero",-25} {"Advantage",12}");
+        Console.WriteLine(new string('-', 42));
 
         foreach (var pick in counterPicks)
         {
@@ -255,8 +270,8 @@ public class DraftMenu : IMenu
             Console.ResetColor();
 
             Console.Write(" ");
-            SetWinRateColor(pick.WinRate);
-            Console.Write($"{pick.WinRate,9:F1}%");
+            SetAdvantageColor(pick.Advantage);
+            Console.Write($"{pick.Advantage,11:+0.0;-0.0;+0.0}%");
             Console.ResetColor();
 
             Console.WriteLine();
@@ -276,6 +291,26 @@ public class DraftMenu : IMenu
         else
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
+        }
+    }
+
+    private void SetAdvantageColor(double advantage)
+    {
+        if (advantage >= 4)
+        {
+            Console.ForegroundColor = ConsoleColor.Cyan;
+        }
+        else if (advantage >= 2)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+        }
+        else if (advantage >= 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
         }
     }
 
@@ -305,7 +340,7 @@ public class DraftMenu : IMenu
     private class CounterPickInfo
     {
         public Hero Hero { get; set; } = null!;
-        public double WinRate { get; set; }
+        public double Advantage { get; set; }
         public int? UserGames { get; set; }
         public long? LastPlayed { get; set; }
         public bool NeverPlayed { get; set; }

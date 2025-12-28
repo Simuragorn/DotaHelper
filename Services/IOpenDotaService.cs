@@ -8,4 +8,5 @@ public interface IOpenDotaService
     Task<List<PlayerHero>?> GetPlayerHeroesAsync(string dotaId);
     Task<List<Hero>?> GetAllHeroesAsync();
     Task<List<HeroMatchup>?> GetHeroMatchupsAsync(int heroId);
+    Task<List<HeroStats>?> GetHeroStatsAsync();
 }

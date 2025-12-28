@@ -1,3 +1,4 @@
+using DotaHelper.Models;
 using DotaHelper.Services;
 
 namespace DotaHelper.Menu;
@@ -6,18 +7,23 @@ public class MainMenu : IMenu
 {
     private readonly DraftMenu _draftMenu;
     private readonly ProfileMenu _profileMenu;
-    private readonly RefetchHeroesMenu _refetchHeroesMenu;
+    private readonly PatchMenu _patchMenu;
+    private readonly RefetchStatsMenu _refetchStatsMenu;
+    private readonly IStorageService<Patch> _patchStorageService;
     private readonly IUserProfileService _profileService;
     private readonly IOpenDotaService _openDotaService;
     private bool _isFirstRun = true;
     private string? _personaName;
     private bool _hasMatches;
+    private string? _currentPatch;
 
-    public MainMenu(DraftMenu draftMenu, ProfileMenu profileMenu, RefetchHeroesMenu refetchHeroesMenu, IUserProfileService profileService, IOpenDotaService openDotaService)
+    public MainMenu(DraftMenu draftMenu, ProfileMenu profileMenu, PatchMenu patchMenu, RefetchStatsMenu refetchStatsMenu, IStorageService<Patch> patchStorageService, IUserProfileService profileService, IOpenDotaService openDotaService)
     {
         _draftMenu = draftMenu;
         _profileMenu = profileMenu;
-        _refetchHeroesMenu = refetchHeroesMenu;
+        _patchMenu = patchMenu;
+        _refetchStatsMenu = refetchStatsMenu;
+        _patchStorageService = patchStorageService;
         _profileService = profileService;
         _openDotaService = openDotaService;
     }
@@ -26,6 +32,15 @@ public class MainMenu : IMenu
     {
         Console.Clear();
         Console.WriteLine("=== Dota Helper ===");
+
+        if (!string.IsNullOrEmpty(_currentPatch))
+        {
+            Console.Write("Patch: ");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(_currentPatch);
+            Console.ResetColor();
+        }
+
         if (!string.IsNullOrEmpty(_personaName))
         {
             Console.Write("Welcome, ");
@@ -50,8 +65,9 @@ public class MainMenu : IMenu
         }
         Console.WriteLine("\n1. Draft");
         Console.WriteLine("2. Profile");
-        Console.WriteLine("3. Refetch Heroes");
-        Console.WriteLine("4. Exit");
+        Console.WriteLine("3. Change Patch");
+        Console.WriteLine("4. Refetch Stats");
+        Console.WriteLine("5. Exit");
         Console.Write("\nSelect an option: ");
     }
 
@@ -60,6 +76,8 @@ public class MainMenu : IMenu
         if (_isFirstRun)
         {
             _isFirstRun = false;
+
+            LoadPatch();
 
             if (_profileService.HasProfile())
             {
@@ -101,9 +119,13 @@ public class MainMenu : IMenu
                     }
                     break;
                 case "3":
-                    await _refetchHeroesMenu.ExecuteAsync();
+                    await _patchMenu.ExecuteAsync();
+                    LoadPatch();
                     break;
                 case "4":
+                    await _refetchStatsMenu.ExecuteAsync();
+                    break;
+                case "5":
                     Console.WriteLine("\nGoodbye!");
                     return;
                 default:
@@ -121,5 +143,11 @@ public class MainMenu : IMenu
 
         var heroes = await _openDotaService.GetPlayerHeroesAsync(dotaId);
         _hasMatches = heroes != null && heroes.Any(h => h.Games > 0);
+    }
+
+    private void LoadPatch()
+    {
+        var patch = _patchStorageService.Load();
+        _currentPatch = patch?.Version;
     }
 }
