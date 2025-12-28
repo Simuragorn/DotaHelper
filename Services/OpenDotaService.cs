@@ -81,4 +81,27 @@ public class OpenDotaService : IOpenDotaService
             return null;
         }
     }
+
+    public async Task<List<HeroMatchup>?> GetHeroMatchupsAsync(int heroId)
+    {
+        try
+        {
+            string url = $"https://api.opendota.com/api/heroes/{heroId}/matchups";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            string json = await response.Content.ReadAsStringAsync();
+            var matchups = JsonSerializer.Deserialize<List<HeroMatchup>>(json);
+
+            return matchups;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
