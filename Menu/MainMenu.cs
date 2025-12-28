@@ -6,15 +6,18 @@ public class MainMenu : IMenu
 {
     private readonly DraftMenu _draftMenu;
     private readonly ProfileMenu _profileMenu;
+    private readonly RefetchHeroesMenu _refetchHeroesMenu;
     private readonly IUserProfileService _profileService;
     private readonly IOpenDotaService _openDotaService;
     private bool _isFirstRun = true;
     private string? _personaName;
+    private bool _hasMatches;
 
-    public MainMenu(DraftMenu draftMenu, ProfileMenu profileMenu, IUserProfileService profileService, IOpenDotaService openDotaService)
+    public MainMenu(DraftMenu draftMenu, ProfileMenu profileMenu, RefetchHeroesMenu refetchHeroesMenu, IUserProfileService profileService, IOpenDotaService openDotaService)
     {
         _draftMenu = draftMenu;
         _profileMenu = profileMenu;
+        _refetchHeroesMenu = refetchHeroesMenu;
         _profileService = profileService;
         _openDotaService = openDotaService;
     }
@@ -30,10 +33,25 @@ public class MainMenu : IMenu
             Console.Write(_personaName);
             Console.ResetColor();
             Console.WriteLine("!");
+
+            if (_hasMatches)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Matches loaded successfully");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("No matches found");
+                Console.ResetColor();
+                Console.WriteLine("Please allow Expose Public Match Data in Dota privacy settings and refresh statistic in opendota profile");
+            }
         }
         Console.WriteLine("\n1. Draft");
         Console.WriteLine("2. Profile");
-        Console.WriteLine("3. Exit");
+        Console.WriteLine("3. Refetch Heroes");
+        Console.WriteLine("4. Exit");
         Console.Write("\nSelect an option: ");
     }
 
@@ -48,7 +66,7 @@ public class MainMenu : IMenu
                 var profile = _profileService.GetProfile();
                 if (profile != null)
                 {
-                    _personaName = await _openDotaService.GetPlayerPersonaNameAsync(profile.DotaId);
+                    await LoadPlayerDataAsync(profile.DotaId);
                 }
             }
             else
@@ -57,7 +75,7 @@ public class MainMenu : IMenu
                 var profile = _profileService.GetProfile();
                 if (profile != null)
                 {
-                    _personaName = await _openDotaService.GetPlayerPersonaNameAsync(profile.DotaId);
+                    await LoadPlayerDataAsync(profile.DotaId);
                 }
             }
         }
@@ -79,10 +97,13 @@ public class MainMenu : IMenu
                     var profile = _profileService.GetProfile();
                     if (profile != null)
                     {
-                        _personaName = await _openDotaService.GetPlayerPersonaNameAsync(profile.DotaId);
+                        await LoadPlayerDataAsync(profile.DotaId);
                     }
                     break;
                 case "3":
+                    await _refetchHeroesMenu.ExecuteAsync();
+                    break;
+                case "4":
                     Console.WriteLine("\nGoodbye!");
                     return;
                 default:
@@ -92,5 +113,13 @@ public class MainMenu : IMenu
                     break;
             }
         }
+    }
+
+    private async Task LoadPlayerDataAsync(string dotaId)
+    {
+        _personaName = await _openDotaService.GetPlayerPersonaNameAsync(dotaId);
+
+        var heroes = await _openDotaService.GetPlayerHeroesAsync(dotaId);
+        _hasMatches = heroes != null && heroes.Any(h => h.Games > 0);
     }
 }

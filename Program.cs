@@ -16,14 +16,16 @@ internal class Program
         try
         {
             var httpClient = new HttpClient();
-            var storageService = new JsonStorageService<UserProfile>("settings.json");
+            var userStorageService = new JsonStorageService<UserProfile>("settings.json");
+            var heroStorageService = new JsonStorageService<List<Hero>>("heroes.json");
             var validator = new DotaIdValidator();
-            var profileService = new UserProfileService(storageService, validator);
+            var profileService = new UserProfileService(userStorageService, validator);
             var openDotaService = new OpenDotaService(httpClient);
 
             var draftMenu = new DraftMenu();
             var profileMenu = new ProfileMenu(profileService, validator, openDotaService);
-            var mainMenu = new MainMenu(draftMenu, profileMenu, profileService, openDotaService);
+            var refetchHeroesMenu = new RefetchHeroesMenu(openDotaService, heroStorageService);
+            var mainMenu = new MainMenu(draftMenu, profileMenu, refetchHeroesMenu, profileService, openDotaService);
 
             await mainMenu.ExecuteAsync();
         }

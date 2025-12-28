@@ -30,7 +30,53 @@ public class OpenDotaService : IOpenDotaService
 
             return playerProfile?.Profile?.Personaname;
         }
-        catch (Exception ex)
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<PlayerHero>?> GetPlayerHeroesAsync(string dotaId)
+    {
+        try
+        {
+            string url = $"{BaseUrl}{dotaId}/heroes";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            string json = await response.Content.ReadAsStringAsync();
+            var heroes = JsonSerializer.Deserialize<List<PlayerHero>>(json);
+
+            return heroes;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<Hero>?> GetAllHeroesAsync()
+    {
+        try
+        {
+            string url = "https://api.opendota.com/api/heroes";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            string json = await response.Content.ReadAsStringAsync();
+            var heroes = JsonSerializer.Deserialize<List<Hero>>(json);
+
+            return heroes;
+        }
+        catch
         {
             return null;
         }
