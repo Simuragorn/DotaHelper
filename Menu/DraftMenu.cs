@@ -106,6 +106,34 @@ public class DraftMenu : IMenu
         }
     }
 
+    private int? GetPositionInput()
+    {
+        Console.WriteLine("\nSelect counter pick position (1-5), or press Enter for all positions:");
+        Console.WriteLine("1 - Core Safe (Position 1)");
+        Console.WriteLine("2 - Core Mid (Position 2)");
+        Console.WriteLine("3 - Core Off (Position 3)");
+        Console.WriteLine("4 - Support Off (Position 4)");
+        Console.WriteLine("5 - Support Safe (Position 5)");
+        Console.Write("\nPosition: ");
+
+        string? input = Console.ReadLine();
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        if (int.TryParse(input, out int position) && position >= 1 && position <= 5)
+        {
+            return position;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("Invalid position. Showing all counters.");
+        Console.ResetColor();
+        return null;
+    }
+
     private Hero? FindMatchingHero(string input)
     {
         if (string.IsNullOrEmpty(input))
@@ -166,6 +194,8 @@ public class DraftMenu : IMenu
             return;
         }
 
+        int? selectedPosition = GetPositionInput();
+
         while (true)
         {
             Console.WriteLine("\nFetching counter data from Dotabuff...");
@@ -188,20 +218,32 @@ public class DraftMenu : IMenu
                 continue;
             }
 
-            var counterPicks = ProcessCounterPicks(counters);
-            DisplayCounterPicksTable(selectedHero, counterPicks);
+            var counterPicks = ProcessCounterPicks(counters, selectedPosition);
+            DisplayCounterPicksTable(selectedHero, counterPicks, selectedPosition);
             break;
         }
     }
 
-    private List<CounterPickInfo> ProcessCounterPicks(List<DotabuffCounter> counters)
+    private List<CounterPickInfo> ProcessCounterPicks(List<DotabuffCounter> counters, int? selectedPosition)
     {
         var counterPicks = new List<CounterPickInfo>();
+        int skippedCount = 0;
 
         foreach (var counter in counters)
         {
             var hero = _heroes?.FirstOrDefault(h => h.Id == counter.HeroId);
             if (hero == null) continue;
+
+            var heroStats = _dotabuffStats?.FirstOrDefault(h => h.Id == counter.HeroId);
+
+            if (selectedPosition.HasValue && heroStats != null)
+            {
+                if (!IsHeroViableForPosition(heroStats, selectedPosition.Value))
+                {
+                    skippedCount++;
+                    continue;
+                }
+            }
 
             var counterPick = new CounterPickInfo
             {
@@ -212,16 +254,67 @@ public class DraftMenu : IMenu
             counterPicks.Add(counterPick);
         }
 
+        if (selectedPosition.HasValue && skippedCount > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n{skippedCount} hero(es) skipped due to position filter.");
+            Console.ResetColor();
+        }
+
         return counterPicks
             .OrderBy(cp => cp.Disadvantage)
             .ToList();
     }
 
-
-    private void DisplayCounterPicksTable(Hero selectedHero, List<CounterPickInfo> counterPicks)
+    private bool IsHeroViableForPosition(DotabuffHeroStats heroStats, int position)
     {
-        Console.WriteLine($"\n=== Counters for {selectedHero.LocalizedName} ===\n");
+        double averagePickRate = (
+            heroStats.PickRateCoreMid +
+            heroStats.PickRateCoreSafe +
+            heroStats.PickRateCoreOff +
+            heroStats.PickRateSupportSafe +
+            heroStats.PickRateSupportOff
+        ) / 5.0;
 
+        double positionPickRate = position switch
+        {
+            1 => heroStats.PickRateCoreSafe,
+            2 => heroStats.PickRateCoreMid,
+            3 => heroStats.PickRateCoreOff,
+            4 => heroStats.PickRateSupportOff,
+            5 => heroStats.PickRateSupportSafe,
+            _ => 0
+        };
+
+        if (averagePickRate <= 0)
+            return false;
+
+        double threshold = averagePickRate * 0.20;
+        return positionPickRate >= threshold;
+    }
+
+    private void DisplayCounterPicksTable(Hero selectedHero, List<CounterPickInfo> counterPicks, int? selectedPosition)
+    {
+        Console.WriteLine($"\n=== Counters for {selectedHero.LocalizedName} ===");
+
+        if (selectedPosition.HasValue)
+        {
+            string positionName = selectedPosition.Value switch
+            {
+                1 => "Core Safe (Pos 1)",
+                2 => "Core Mid (Pos 2)",
+                3 => "Core Off (Pos 3)",
+                4 => "Support Off (Pos 4)",
+                5 => "Support Safe (Pos 5)",
+                _ => "Unknown"
+            };
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"Position Filter: {positionName}");
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
         Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
         Console.WriteLine(new string('-', 44));
 
