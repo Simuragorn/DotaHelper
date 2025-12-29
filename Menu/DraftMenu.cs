@@ -371,6 +371,11 @@ public class DraftMenu : IMenu
             Console.WriteLine();
         }
 
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine();
+        Console.WriteLine("---TOP FAVORITE HEROES---");
+        Console.ResetColor();
+
         foreach (var pick in top3Favorites)
         {
             Console.ForegroundColor = ConsoleColor.Magenta;

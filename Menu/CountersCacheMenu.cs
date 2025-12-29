@@ -33,8 +33,15 @@ public class CountersCacheMenu : IMenu
             int totalHeroes = heroes.Count;
             int cachedHeroes = cacheInfo.Cache.Count;
 
-            Console.WriteLine($"Cached heroes: {cachedHeroes}/{totalHeroes}");
-            Console.WriteLine($"Current patch: {cacheInfo.PatchVersion}");
+            Console.Write("Cached heroes: ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"{cachedHeroes}/{totalHeroes}");
+            Console.ResetColor();
+
+            Console.Write("Current patch: ");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(cacheInfo.PatchVersion);
+            Console.ResetColor();
 
             if (cachedHeroes > 0)
             {
@@ -43,8 +50,25 @@ public class CountersCacheMenu : IMenu
                 var daysSinceOldest = (DateTime.UtcNow - oldestCache).Days;
                 var daysSinceNewest = (DateTime.UtcNow - newestCache).Days;
 
-                Console.WriteLine($"Oldest cache: {daysSinceOldest} day(s) ago");
-                Console.WriteLine($"Newest cache: {daysSinceNewest} day(s) ago");
+                Console.Write("Oldest cache: ");
+                if (daysSinceOldest > 7)
+                    Console.ForegroundColor = ConsoleColor.Red;
+                else if (daysSinceOldest > 3)
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                else
+                    Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{daysSinceOldest} day(s) ago");
+                Console.ResetColor();
+
+                Console.Write("Newest cache: ");
+                if (daysSinceNewest > 7)
+                    Console.ForegroundColor = ConsoleColor.Red;
+                else if (daysSinceNewest > 3)
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                else
+                    Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{daysSinceNewest} day(s) ago");
+                Console.ResetColor();
             }
         }
         else if (cacheInfo != null && patch != null && cacheInfo.PatchVersion != patch.Version)
@@ -61,9 +85,18 @@ public class CountersCacheMenu : IMenu
         }
 
         Console.WriteLine("\nOptions:");
-        Console.WriteLine("1. Pre-cache all heroes' counterpicks");
-        Console.WriteLine("2. Clear cache");
-        Console.WriteLine("3. Return to main menu");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.Write("1");
+        Console.ResetColor();
+        Console.WriteLine(". Pre-cache all heroes' counterpicks");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.Write("2");
+        Console.ResetColor();
+        Console.WriteLine(". Clear cache");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.Write("3");
+        Console.ResetColor();
+        Console.WriteLine(". Return to main menu");
         Console.Write("\nSelect an option: ");
     }
 

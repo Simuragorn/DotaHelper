@@ -68,13 +68,23 @@ public class FavoriteHeroesMenu : IMenu
 
         var sortedList = displayList.OrderByDescending(h => h.WinRate).ToList();
 
+        Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"{"Hero",-25} {"Positions",-30} {"WinRate",10}");
         Console.WriteLine(new string('-', 70));
+        Console.ResetColor();
 
         foreach (var item in sortedList)
         {
-            Console.Write($"{item.LocalizedName,-25} {item.Roles,-30} ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"{item.LocalizedName,-25}");
+            Console.ResetColor();
 
+            Console.Write(" ");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"{item.Roles,-30}");
+            Console.ResetColor();
+
+            Console.Write(" ");
             SetWinRateColor(item.WinRate);
             Console.Write($"{item.WinRate,9:0.00}%");
             Console.ResetColor();
