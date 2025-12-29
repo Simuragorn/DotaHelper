@@ -47,7 +47,7 @@ internal class Program
             var countersCache = new JsonStorageService<HeroCountersCache>("counters-cache.json");
             using var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage, countersCache);
 
-            var patchMenu = new PatchMenu(patchStorageService, dotabuffStatsStorage, countersCache);
+            var patchMenu = new PatchMenu(patchStorageService, dotabuffStatsStorage, countersCache, dotabuffService);
 
             var currentPatch = patchStorageService.Load();
             if (currentPatch == null)
@@ -98,10 +98,9 @@ internal class Program
                 dotabuffStats = dotabuffService.GetCachedStats() ?? new List<DotabuffHeroStats>();
             }
 
-            var refetchStatsMenu = new RefetchStatsMenu(dotabuffService, patchStorageService);
             var draftMenu = new DraftMenu(heroStorageService, dotabuffStats, dotabuffService, patchStorageService);
             var countersCacheMenu = new CountersCacheMenu(dotabuffService, heroStorageService, patchStorageService);
-            var mainMenu = new MainMenu(draftMenu, patchMenu, refetchStatsMenu, countersCacheMenu, patchStorageService, dotabuffStatsStorage, dotabuffService, heroStorageService);
+            var mainMenu = new MainMenu(draftMenu, patchMenu, countersCacheMenu, patchStorageService, dotabuffStatsStorage, dotabuffService, heroStorageService);
 
             await mainMenu.ExecuteAsync();
         }

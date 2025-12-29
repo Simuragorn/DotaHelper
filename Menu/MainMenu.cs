@@ -7,7 +7,6 @@ public class MainMenu : IMenu
 {
     private readonly DraftMenu _draftMenu;
     private readonly PatchMenu _patchMenu;
-    private readonly RefetchStatsMenu _refetchStatsMenu;
     private readonly CountersCacheMenu _countersCacheMenu;
     private readonly IStorageService<Patch> _patchStorageService;
     private readonly IStorageService<DotabuffStatsData> _dotabuffStatsStorageService;
@@ -20,7 +19,6 @@ public class MainMenu : IMenu
     public MainMenu(
         DraftMenu draftMenu,
         PatchMenu patchMenu,
-        RefetchStatsMenu refetchStatsMenu,
         CountersCacheMenu countersCacheMenu,
         IStorageService<Patch> patchStorageService,
         IStorageService<DotabuffStatsData> dotabuffStatsStorageService,
@@ -29,7 +27,6 @@ public class MainMenu : IMenu
     {
         _draftMenu = draftMenu;
         _patchMenu = patchMenu;
-        _refetchStatsMenu = refetchStatsMenu;
         _countersCacheMenu = countersCacheMenu;
         _patchStorageService = patchStorageService;
         _dotabuffStatsStorageService = dotabuffStatsStorageService;
@@ -49,33 +46,21 @@ public class MainMenu : IMenu
             Console.Write(_currentPatch);
             Console.ResetColor();
 
-            Console.Write(" (");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-
             if (_lastFetchedStats.HasValue)
             {
-                var daysDiff = (DateTime.UtcNow - _lastFetchedStats.Value).Days;
-
-                if (daysDiff == 0)
-                {
-                    Console.Write("statistic fetched today");
-                }
-                else if (daysDiff == 1)
-                {
-                    Console.Write("statistic fetched 1 day ago");
-                }
-                else
-                {
-                    Console.Write($"statistic fetched {daysDiff} days ago");
-                }
+                Console.Write(" ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("Ready");
+                Console.ResetColor();
             }
             else
             {
-                Console.Write("statistic fetched never");
+                Console.Write(" ");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("(Reset patch needed)");
+                Console.ResetColor();
             }
 
-            Console.ResetColor();
-            Console.Write(")");
             Console.WriteLine();
         }
 
@@ -127,8 +112,7 @@ public class MainMenu : IMenu
 
         Console.WriteLine("\n1. Draft");
         Console.WriteLine("2. Change Patch");
-        Console.WriteLine("3. Refetch heroes statistic");
-        Console.WriteLine("4. Cache Management");
+        Console.WriteLine("3. Cache Management");
         Console.WriteLine("0. Exit");
         Console.Write("\nSelect an option: ");
     }
@@ -161,10 +145,6 @@ public class MainMenu : IMenu
                     LoadStatsTime();
                     break;
                 case "3":
-                    await _refetchStatsMenu.ExecuteAsync();
-                    LoadStatsTime();
-                    break;
-                case "4":
                     await _countersCacheMenu.ExecuteAsync();
                     break;
                 case "0":

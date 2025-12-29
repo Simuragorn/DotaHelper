@@ -8,15 +8,18 @@ public class PatchMenu : IMenu
     private readonly IStorageService<Patch> _patchStorageService;
     private readonly IStorageService<DotabuffStatsData> _statsStorageService;
     private readonly IStorageService<HeroCountersCache> _countersCache;
+    private readonly IDotabuffService _dotabuffService;
 
     public PatchMenu(
         IStorageService<Patch> patchStorageService,
         IStorageService<DotabuffStatsData> statsStorageService,
-        IStorageService<HeroCountersCache> countersCache)
+        IStorageService<HeroCountersCache> countersCache,
+        IDotabuffService dotabuffService)
     {
         _patchStorageService = patchStorageService;
         _statsStorageService = statsStorageService;
         _countersCache = countersCache;
+        _dotabuffService = dotabuffService;
     }
 
     public void Display()
@@ -67,6 +70,26 @@ public class PatchMenu : IMenu
         Console.WriteLine("✓ Counterpicks cache cleared");
         Console.ResetColor();
 
-        await Task.CompletedTask;
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("\nFetching hero statistics for new patch...");
+        Console.ResetColor();
+
+        var fetchedStats = await _dotabuffService.FetchHeroStatsAsync(patch.Version);
+
+        if (fetchedStats != null && fetchedStats.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"✓ Successfully fetched statistics for {fetchedStats.Count} heroes");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("✗ Failed to fetch statistics. You can try again from the main menu.");
+            Console.ResetColor();
+        }
+
+        Console.WriteLine("\nPress any key to return to main menu...");
+        Console.ReadKey();
     }
 }
