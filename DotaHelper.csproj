@@ -5,10 +5,15 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>sheepsticked-alex-rubick.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="nul" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="sheepsticked-alex-rubick.ico" />
   </ItemGroup>
 
   <ItemGroup>

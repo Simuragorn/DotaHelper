@@ -322,30 +322,56 @@ public class DraftMenu : IMenu
 
         var favoritePicks = counterPicks
             .Where(cp => favoriteHeroIds.Contains(cp.Hero.Id))
-            .OrderBy(cp => cp.Disadvantage)
+            .OrderByDescending(cp => cp.Disadvantage)
             .ToList();
+
+        var top3Favorites = favoritePicks.Take(3).Reverse().ToList();
+        var otherFavorites = favoritePicks.Skip(3).ToList();
 
         var regularPicks = counterPicks
             .Where(cp => !favoriteHeroIds.Contains(cp.Hero.Id))
+            .ToList();
+
+        var mixedPicks = regularPicks.Concat(otherFavorites)
+            .OrderBy(cp => cp.Disadvantage)
             .ToList();
 
         Console.WriteLine();
         Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
         Console.WriteLine(new string('-', 44));
 
-        foreach (var pick in regularPicks)
+        foreach (var pick in mixedPicks)
         {
+            bool isFavorite = favoriteHeroIds.Contains(pick.Hero.Id);
+
+            if (isFavorite)
+            {
+                Console.ForegroundColor = ConsoleColor.Magenta;
+            }
+
             Console.Write($"{pick.Hero.LocalizedName,-25}");
+
+            if (isFavorite)
+            {
+                Console.ResetColor();
+            }
 
             Console.Write(" ");
             SetDisadvantageColor(pick.Disadvantage);
             Console.Write($"{pick.Disadvantage,13:0.00}%");
             Console.ResetColor();
 
+            if (isFavorite)
+            {
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.Write(" (Favorite)");
+                Console.ResetColor();
+            }
+
             Console.WriteLine();
         }
 
-        foreach (var pick in favoritePicks)
+        foreach (var pick in top3Favorites)
         {
             Console.ForegroundColor = ConsoleColor.Magenta;
             Console.Write($"{pick.Hero.LocalizedName,-25}");
