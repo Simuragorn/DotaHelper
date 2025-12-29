@@ -9,6 +9,7 @@ public class DotabuffService : IDotabuffService, IDisposable
     private readonly HttpClient _httpClient;
     private readonly IStorageService<List<Hero>> _heroStorageService;
     private readonly IStorageService<DotabuffStatsData> _statsStorageService;
+    private readonly IStorageService<HeroCountersCache> _countersCache;
     private List<Hero> _discoveredHeroes = new();
     private IPlaywright? _playwright;
     private IBrowser? _browser;
@@ -20,11 +21,13 @@ public class DotabuffService : IDotabuffService, IDisposable
     public DotabuffService(
         HttpClient httpClient,
         IStorageService<List<Hero>> heroStorageService,
-        IStorageService<DotabuffStatsData> statsStorageService)
+        IStorageService<DotabuffStatsData> statsStorageService,
+        IStorageService<HeroCountersCache> countersCache)
     {
         _httpClient = httpClient;
         _heroStorageService = heroStorageService;
         _statsStorageService = statsStorageService;
+        _countersCache = countersCache;
 
         _httpClient.DefaultRequestHeaders.Clear();
         _httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
@@ -189,6 +192,15 @@ public class DotabuffService : IDotabuffService, IDisposable
     {
         try
         {
+            var cache = _countersCache.Load();
+            if (cache != null && cache.PatchVersion == patchVersion && cache.Cache.ContainsKey(heroUrl))
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"✓ Using cached counters for {heroUrl}");
+                Console.ResetColor();
+                return cache.Cache[heroUrl].Counters;
+            }
+
             await EnsureBrowserInitializedAsync();
 
             if (_browser == null)
@@ -240,7 +252,28 @@ public class DotabuffService : IDotabuffService, IDisposable
 
             await context.CloseAsync();
 
-            return ParseCountersHtml(html);
+            var counters = ParseCountersHtml(html);
+
+            if (counters != null && counters.Count > 0)
+            {
+                var updatedCache = _countersCache.Load() ?? new HeroCountersCache { PatchVersion = patchVersion };
+
+                if (updatedCache.PatchVersion != patchVersion)
+                {
+                    updatedCache = new HeroCountersCache { PatchVersion = patchVersion };
+                }
+
+                updatedCache.Cache[heroUrl] = new HeroCounterData
+                {
+                    HeroUrl = heroUrl,
+                    Counters = counters,
+                    LastFetched = DateTime.UtcNow
+                };
+
+                _countersCache.Save(updatedCache);
+            }
+
+            return counters;
         }
         catch (TimeoutException)
         {
@@ -569,6 +602,78 @@ public class DotabuffService : IDotabuffService, IDisposable
         public double WinRate { get; set; }
         public double PickRate { get; set; }
         public double BanRate { get; set; }
+    }
+
+    public HeroCounterData? GetCachedCounters(string heroUrl)
+    {
+        var cache = _countersCache.Load();
+        if (cache?.Cache.ContainsKey(heroUrl) == true)
+        {
+            return cache.Cache[heroUrl];
+        }
+        return null;
+    }
+
+    public void ClearCountersCache()
+    {
+        _countersCache.Delete();
+    }
+
+    public HeroCountersCache? GetCountersCacheInfo()
+    {
+        return _countersCache.Load();
+    }
+
+    public async Task<int> PreCacheAllCountersAsync(
+        string patchVersion,
+        List<Hero> heroes,
+        Action<int, int> progressCallback,
+        Func<bool> shouldContinue)
+    {
+        var cache = _countersCache.Load() ?? new HeroCountersCache { PatchVersion = patchVersion };
+
+        if (cache.PatchVersion != patchVersion)
+        {
+            cache = new HeroCountersCache { PatchVersion = patchVersion };
+        }
+
+        int total = heroes.Count;
+        int cached = 0;
+
+        for (int i = 0; i < heroes.Count; i++)
+        {
+            if (!shouldContinue())
+            {
+                break;
+            }
+
+            var hero = heroes[i];
+
+            if (cache.Cache.ContainsKey(hero.Name.Replace("npc_dota_hero_", "").Replace("_", "-")))
+            {
+                cached++;
+                progressCallback(cached, total);
+                continue;
+            }
+
+            string heroUrl = hero.Name.Replace("npc_dota_hero_", "").Replace("_", "-");
+
+            var counters = await FetchHeroCountersAsync(heroUrl, patchVersion);
+
+            if (counters != null)
+            {
+                cached++;
+            }
+
+            progressCallback(cached, total);
+
+            if (i < heroes.Count - 1 && shouldContinue())
+            {
+                await Task.Delay(5000);
+            }
+        }
+
+        return cached;
     }
 
     public void Dispose()

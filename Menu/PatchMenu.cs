@@ -7,11 +7,16 @@ public class PatchMenu : IMenu
 {
     private readonly IStorageService<Patch> _patchStorageService;
     private readonly IStorageService<DotabuffStatsData> _statsStorageService;
+    private readonly IStorageService<HeroCountersCache> _countersCache;
 
-    public PatchMenu(IStorageService<Patch> patchStorageService, IStorageService<DotabuffStatsData> statsStorageService)
+    public PatchMenu(
+        IStorageService<Patch> patchStorageService,
+        IStorageService<DotabuffStatsData> statsStorageService,
+        IStorageService<HeroCountersCache> countersCache)
     {
         _patchStorageService = patchStorageService;
         _statsStorageService = statsStorageService;
+        _countersCache = countersCache;
     }
 
     public void Display()
@@ -54,10 +59,12 @@ public class PatchMenu : IMenu
 
         _patchStorageService.Save(patch);
         _statsStorageService.Delete();
+        _countersCache.Delete();
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"\n✓ Patch updated to: {patch.Version}");
         Console.WriteLine("✓ Cached statistics cleared");
+        Console.WriteLine("✓ Counterpicks cache cleared");
         Console.ResetColor();
 
         await Task.CompletedTask;

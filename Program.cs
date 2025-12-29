@@ -14,14 +14,17 @@ internal class Program
 
         try
         {
+            SetBufferSize();
+
             var cookieContainer = new System.Net.CookieContainer();
             var httpClient = new HttpClient();
             var heroStorageService = new JsonStorageService<List<Hero>>("heroes.json");
             var patchStorageService = new JsonStorageService<Patch>("patch.json");
             var dotabuffStatsStorage = new JsonStorageService<DotabuffStatsData>("dotabuff-stats.json");
-            using var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage);
+            var countersCache = new JsonStorageService<HeroCountersCache>("counters-cache.json");
+            using var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage, countersCache);
 
-            var patchMenu = new PatchMenu(patchStorageService, dotabuffStatsStorage);
+            var patchMenu = new PatchMenu(patchStorageService, dotabuffStatsStorage, countersCache);
 
             var currentPatch = patchStorageService.Load();
             if (currentPatch == null)
@@ -74,7 +77,8 @@ internal class Program
 
             var refetchStatsMenu = new RefetchStatsMenu(dotabuffService, patchStorageService);
             var draftMenu = new DraftMenu(heroStorageService, dotabuffStats, dotabuffService, patchStorageService);
-            var mainMenu = new MainMenu(draftMenu, patchMenu, refetchStatsMenu, patchStorageService, dotabuffStatsStorage);
+            var countersCacheMenu = new CountersCacheMenu(dotabuffService, heroStorageService, patchStorageService);
+            var mainMenu = new MainMenu(draftMenu, patchMenu, refetchStatsMenu, countersCacheMenu, patchStorageService, dotabuffStatsStorage, dotabuffService, heroStorageService);
 
             await mainMenu.ExecuteAsync();
         }
@@ -84,5 +88,13 @@ internal class Program
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
+    }
+
+    private static void SetBufferSize()
+    {
+        int width = Math.Max(Console.BufferWidth, Console.WindowWidth);
+        int height = Math.Max(5000, Console.WindowHeight);
+
+        Console.SetBufferSize(width, height);
     }
 }

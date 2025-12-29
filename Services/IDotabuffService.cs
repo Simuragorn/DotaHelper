@@ -11,4 +11,16 @@ public interface IDotabuffService : IDisposable
     bool HasValidCache(string currentPatch);
 
     Task<List<DotabuffCounter>?> FetchHeroCountersAsync(string heroUrl, string patchVersion);
+
+    HeroCounterData? GetCachedCounters(string heroUrl);
+
+    void ClearCountersCache();
+
+    HeroCountersCache? GetCountersCacheInfo();
+
+    Task<int> PreCacheAllCountersAsync(
+        string patchVersion,
+        List<Hero> heroes,
+        Action<int, int> progressCallback,
+        Func<bool> shouldContinue);
 }
