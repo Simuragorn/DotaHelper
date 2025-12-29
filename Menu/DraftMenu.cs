@@ -9,18 +9,21 @@ public class DraftMenu : IMenu
     private readonly List<DotabuffHeroStats> _dotabuffStats;
     private readonly IDotabuffService _dotabuffService;
     private readonly IStorageService<Patch> _patchStorageService;
+    private readonly IStorageService<FavoriteHeroes> _favoriteHeroesStorage;
     private List<Hero>? _heroes;
 
     public DraftMenu(
         IStorageService<List<Hero>> heroStorageService,
         List<DotabuffHeroStats> dotabuffStats,
         IDotabuffService dotabuffService,
-        IStorageService<Patch> patchStorageService)
+        IStorageService<Patch> patchStorageService,
+        IStorageService<FavoriteHeroes> favoriteHeroesStorage)
     {
         _heroStorageService = heroStorageService;
         _dotabuffStats = dotabuffStats;
         _dotabuffService = dotabuffService;
         _patchStorageService = patchStorageService;
+        _favoriteHeroesStorage = favoriteHeroesStorage;
     }
 
     public void Display()
@@ -314,17 +317,47 @@ public class DraftMenu : IMenu
             Console.ResetColor();
         }
 
+        var favoriteHeroes = _favoriteHeroesStorage.Load();
+        var favoriteHeroIds = favoriteHeroes?.HeroIds ?? new List<int>();
+
+        var favoritePicks = counterPicks
+            .Where(cp => favoriteHeroIds.Contains(cp.Hero.Id))
+            .OrderBy(cp => cp.Disadvantage)
+            .ToList();
+
+        var regularPicks = counterPicks
+            .Where(cp => !favoriteHeroIds.Contains(cp.Hero.Id))
+            .ToList();
+
         Console.WriteLine();
         Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
         Console.WriteLine(new string('-', 44));
 
-        foreach (var pick in counterPicks)
+        foreach (var pick in regularPicks)
         {
             Console.Write($"{pick.Hero.LocalizedName,-25}");
 
             Console.Write(" ");
             SetDisadvantageColor(pick.Disadvantage);
             Console.Write($"{pick.Disadvantage,13:0.00}%");
+            Console.ResetColor();
+
+            Console.WriteLine();
+        }
+
+        foreach (var pick in favoritePicks)
+        {
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write($"{pick.Hero.LocalizedName,-25}");
+            Console.ResetColor();
+
+            Console.Write(" ");
+            SetDisadvantageColor(pick.Disadvantage);
+            Console.Write($"{pick.Disadvantage,13:0.00}%");
+            Console.ResetColor();
+
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write(" (Favorite)");
             Console.ResetColor();
 
             Console.WriteLine();

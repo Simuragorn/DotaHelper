@@ -99,7 +99,7 @@ internal class Program
                 dotabuffStats = dotabuffService.GetCachedStats() ?? new List<DotabuffHeroStats>();
             }
 
-            var draftMenu = new DraftMenu(heroStorageService, dotabuffStats, dotabuffService, patchStorageService);
+            var draftMenu = new DraftMenu(heroStorageService, dotabuffStats, dotabuffService, patchStorageService, favoriteHeroesStorage);
             var countersCacheMenu = new CountersCacheMenu(dotabuffService, heroStorageService, patchStorageService);
             var favoriteHeroesMenu = new FavoriteHeroesMenu(favoriteHeroesStorage, heroStorageService, dotabuffStatsStorage);
             var mainMenu = new MainMenu(draftMenu, patchMenu, countersCacheMenu, favoriteHeroesMenu, patchStorageService, dotabuffStatsStorage, dotabuffService, heroStorageService, favoriteHeroesStorage);
