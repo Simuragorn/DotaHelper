@@ -1,6 +1,7 @@
 ﻿using DotaHelper.Menu;
 using DotaHelper.Models;
 using DotaHelper.Services;
+using System.Runtime.InteropServices;
 
 namespace DotaHelper;
 
@@ -8,12 +9,34 @@ using System.Text;
 
 internal class Program
 {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetStdHandle(int nStdHandle);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool bMaximumWindow, ref CONSOLE_FONT_INFOEX lpConsoleCurrentFontEx);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct CONSOLE_FONT_INFOEX
+    {
+        public uint cbSize;
+        public uint nFont;
+        public short dwFontSizeX;
+        public short dwFontSizeY;
+        public uint FontFamily;
+        public uint FontWeight;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string FaceName;
+    }
+
+    private const int STD_OUTPUT_HANDLE = -11;
+
     static async Task Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
 
         try
         {
+            SetConsoleFontSize(24);
             SetBufferSize();
 
             var cookieContainer = new System.Net.CookieContainer();
@@ -96,5 +119,31 @@ internal class Program
         int height = Math.Max(5000, Console.WindowHeight);
 
         Console.SetBufferSize(width, height);
+    }
+
+    private static void SetConsoleFontSize(short fontSize)
+    {
+        try
+        {
+            IntPtr hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (hConsoleOutput == IntPtr.Zero)
+                return;
+
+            CONSOLE_FONT_INFOEX fontInfo = new CONSOLE_FONT_INFOEX
+            {
+                cbSize = (uint)Marshal.SizeOf<CONSOLE_FONT_INFOEX>(),
+                nFont = 0,
+                dwFontSizeX = 0,
+                dwFontSizeY = fontSize,
+                FontFamily = 54,
+                FontWeight = 400,
+                FaceName = "Consolas"
+            };
+
+            SetCurrentConsoleFontEx(hConsoleOutput, false, ref fontInfo);
+        }
+        catch
+        {
+        }
     }
 }
