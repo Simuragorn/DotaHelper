@@ -1,3 +1,4 @@
+using DotaHelper.Helpers;
 using DotaHelper.Models;
 using DotaHelper.Services;
 
@@ -317,9 +318,21 @@ public class DraftMenu : IMenu
             Console.ResetColor();
         }
 
-        var favoriteHeroes = _favoriteHeroesStorage.Load();
-        var favoriteHeroIds = favoriteHeroes?.HeroIds ?? new List<int>();
+        var favoriteHeroIds = _favoriteHeroesStorage.Load()?.HeroIds ?? new List<int>();
+        var (mixedPicks, top3Favorites) = SeparateFavoriteCounterpicks(counterPicks, favoriteHeroIds);
 
+        Console.WriteLine();
+        Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
+        Console.WriteLine(new string('-', 44));
+
+        DisplayCounterpickList(mixedPicks, favoriteHeroIds);
+        DisplayTopFavorites(top3Favorites);
+    }
+
+
+    private (List<CounterPickInfo> mixedPicks, List<CounterPickInfo> top3Favorites) SeparateFavoriteCounterpicks(
+        List<CounterPickInfo> counterPicks, List<int> favoriteHeroIds)
+    {
         var favoritePicks = counterPicks
             .Where(cp => favoriteHeroIds.Contains(cp.Hero.Id))
             .OrderByDescending(cp => cp.Disadvantage)
@@ -336,65 +349,53 @@ public class DraftMenu : IMenu
             .OrderBy(cp => cp.Disadvantage)
             .ToList();
 
-        Console.WriteLine();
-        Console.WriteLine($"{"Hero",-25} {"Disadvantage",14}");
-        Console.WriteLine(new string('-', 44));
+        return (mixedPicks, top3Favorites);
+    }
 
-        foreach (var pick in mixedPicks)
+    private void DisplayCounterpickList(List<CounterPickInfo> picks, List<int> favoriteHeroIds)
+    {
+        foreach (var pick in picks)
         {
             bool isFavorite = favoriteHeroIds.Contains(pick.Hero.Id);
-
-            if (isFavorite)
-            {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-            }
-
-            Console.Write($"{pick.Hero.LocalizedName,-25}");
-
-            if (isFavorite)
-            {
-                Console.ResetColor();
-            }
-
-            Console.Write(" ");
-            SetDisadvantageColor(pick.Disadvantage);
-            Console.Write($"{pick.Disadvantage,13:0.00}%");
-            Console.ResetColor();
-
-            if (isFavorite)
-            {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.Write(" (Favorite)");
-                Console.ResetColor();
-            }
-
-            Console.WriteLine();
-        }
-
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine();
-        Console.WriteLine("---TOP FAVORITE HEROES---");
-        Console.ResetColor();
-
-        foreach (var pick in top3Favorites)
-        {
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.Write($"{pick.Hero.LocalizedName,-25}");
-            Console.ResetColor();
-
-            Console.Write(" ");
-            SetDisadvantageColor(pick.Disadvantage);
-            Console.Write($"{pick.Disadvantage,13:0.00}%");
-            Console.ResetColor();
-
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.Write(" (Favorite)");
-            Console.ResetColor();
-
-            Console.WriteLine();
+            DisplayCounterpickRow(pick, isFavorite);
         }
     }
 
+    private void DisplayTopFavorites(List<CounterPickInfo> top3Favorites)
+    {
+        if (top3Favorites.Count == 0) return;
+
+        ConsoleHelper.WriteLineColored("\n---TOP FAVORITE HEROES---", ConsoleColor.Magenta);
+
+        foreach (var pick in top3Favorites)
+        {
+            DisplayCounterpickRow(pick, isFavorite: true);
+        }
+    }
+
+    private void DisplayCounterpickRow(CounterPickInfo pick, bool isFavorite)
+    {
+        if (isFavorite)
+        {
+            ConsoleHelper.WriteColored($"{pick.Hero.LocalizedName,-25}", ConsoleColor.Magenta);
+        }
+        else
+        {
+            Console.Write($"{pick.Hero.LocalizedName,-25}");
+        }
+
+        Console.Write(" ");
+        SetDisadvantageColor(pick.Disadvantage);
+        Console.Write($"{pick.Disadvantage,13:0.00}%");
+        Console.ResetColor();
+
+        if (isFavorite)
+        {
+            ConsoleHelper.WriteColored(" (Favorite)", ConsoleColor.Magenta);
+        }
+
+        Console.WriteLine();
+    }
 
     private void SetDisadvantageColor(double disadvantage)
     {

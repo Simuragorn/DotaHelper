@@ -1,3 +1,4 @@
+using DotaHelper.Helpers;
 using DotaHelper.Models;
 using DotaHelper.Services;
 
@@ -28,76 +29,71 @@ public class CountersCacheMenu : IMenu
         var heroes = _heroStorageService.Load();
         var patch = _patchStorageService.Load();
 
+        DisplayCacheStatus(cacheInfo, heroes, patch);
+        DisplayMenuOptions();
+    }
+
+    private void DisplayCacheStatus(HeroCountersCache? cacheInfo, List<Hero>? heroes, Patch? patch)
+    {
         if (cacheInfo != null && heroes != null && cacheInfo.PatchVersion == patch?.Version)
         {
-            int totalHeroes = heroes.Count;
-            int cachedHeroes = cacheInfo.Cache.Count;
-
-            Console.Write("Cached heroes: ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"{cachedHeroes}/{totalHeroes}");
-            Console.ResetColor();
-
-            Console.Write("Current patch: ");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(cacheInfo.PatchVersion);
-            Console.ResetColor();
-
-            if (cachedHeroes > 0)
-            {
-                var oldestCache = cacheInfo.Cache.Values.Min(c => c.LastFetched);
-                var newestCache = cacheInfo.Cache.Values.Max(c => c.LastFetched);
-                var daysSinceOldest = (DateTime.UtcNow - oldestCache).Days;
-                var daysSinceNewest = (DateTime.UtcNow - newestCache).Days;
-
-                Console.Write("Oldest cache: ");
-                if (daysSinceOldest > 7)
-                    Console.ForegroundColor = ConsoleColor.Red;
-                else if (daysSinceOldest > 3)
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                else
-                    Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"{daysSinceOldest} day(s) ago");
-                Console.ResetColor();
-
-                Console.Write("Newest cache: ");
-                if (daysSinceNewest > 7)
-                    Console.ForegroundColor = ConsoleColor.Red;
-                else if (daysSinceNewest > 3)
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                else
-                    Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"{daysSinceNewest} day(s) ago");
-                Console.ResetColor();
-            }
+            DisplayValidCache(cacheInfo, heroes.Count);
         }
         else if (cacheInfo != null && patch != null && cacheInfo.PatchVersion != patch.Version)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Cache is for a different patch version.");
-            Console.WriteLine($"Cache patch: {cacheInfo.PatchVersion}");
-            Console.WriteLine($"Current patch: {patch.Version}");
-            Console.ResetColor();
+            DisplayPatchMismatch(cacheInfo, patch);
         }
         else
         {
             Console.WriteLine("No cache data available.");
         }
+    }
 
+    private void DisplayValidCache(HeroCountersCache cacheInfo, int totalHeroes)
+    {
+        int cachedHeroes = cacheInfo.Cache.Count;
+
+        ConsoleHelper.WriteLabelValue("Cached heroes: ", $"{cachedHeroes}/{totalHeroes}", ConsoleColor.Cyan);
+        ConsoleHelper.WriteLabelValue("Current patch: ", cacheInfo.PatchVersion, ConsoleColor.Yellow);
+
+        if (cachedHeroes > 0)
+        {
+            var oldestCache = cacheInfo.Cache.Values.Min(c => c.LastFetched);
+            var newestCache = cacheInfo.Cache.Values.Max(c => c.LastFetched);
+            var daysSinceOldest = (DateTime.UtcNow - oldestCache).Days;
+            var daysSinceNewest = (DateTime.UtcNow - newestCache).Days;
+
+            DisplayCacheAge("Oldest cache: ", daysSinceOldest);
+            DisplayCacheAge("Newest cache: ", daysSinceNewest);
+        }
+    }
+
+    private void DisplayCacheAge(string label, int days)
+    {
+        var color = days > 7 ? ConsoleColor.Red : days > 3 ? ConsoleColor.Yellow : ConsoleColor.Green;
+        ConsoleHelper.WriteLabelValue(label, $"{days} day(s) ago", color);
+    }
+
+    private void DisplayPatchMismatch(HeroCountersCache cacheInfo, Patch patch)
+    {
+        ConsoleHelper.WriteLineColored("Cache is for a different patch version.", ConsoleColor.Yellow);
+        ConsoleHelper.WriteLineColored($"Cache patch: {cacheInfo.PatchVersion}", ConsoleColor.Yellow);
+        ConsoleHelper.WriteLineColored($"Current patch: {patch.Version}", ConsoleColor.Yellow);
+    }
+
+    private void DisplayMenuOptions()
+    {
         Console.WriteLine("\nOptions:");
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.Write("1");
-        Console.ResetColor();
-        Console.WriteLine(". Pre-cache all heroes' counterpicks");
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.Write("2");
-        Console.ResetColor();
-        Console.WriteLine(". Clear cache");
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.Write("3");
-        Console.ResetColor();
-        Console.WriteLine(". Return to main menu");
+        DisplayMenuOption("1", "Pre-cache all heroes' counterpicks");
+        DisplayMenuOption("2", "Clear cache");
+        DisplayMenuOption("3", "Return to main menu");
         Console.Write("\nSelect an option: ");
+    }
+
+    private void DisplayMenuOption(string number, string description)
+    {
+        ConsoleHelper.WriteColored(number, ConsoleColor.Cyan);
+        Console.WriteLine($". {description}");
     }
 
     public async Task ExecuteAsync()

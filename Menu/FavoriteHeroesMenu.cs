@@ -1,3 +1,4 @@
+using DotaHelper.Helpers;
 using DotaHelper.Models;
 using DotaHelper.Services;
 
@@ -32,65 +33,21 @@ public class FavoriteHeroesMenu : IMenu
 
         if (_heroes == null || _heroes.Count == 0)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("No heroes data found. Please fetch hero statistics first.");
-            Console.ResetColor();
+            ConsoleHelper.WriteLineColored("No heroes data found. Please fetch hero statistics first.", ConsoleColor.Red);
             return;
         }
 
         if (_favoriteHeroes.HeroIds.Count == 0)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("No favorite heroes yet. Add some below!");
-            Console.ResetColor();
+            ConsoleHelper.WriteLineColored("No favorite heroes yet. Add some below!", ConsoleColor.DarkGray);
             Console.WriteLine();
             return;
         }
 
-        var displayList = new List<FavoriteHeroDisplay>();
-
-        foreach (var heroId in _favoriteHeroes.HeroIds)
-        {
-            var hero = _heroes.FirstOrDefault(h => h.Id == heroId);
-            if (hero == null) continue;
-
-            var heroStats = statsData?.Stats.FirstOrDefault(s => s.Id == heroId);
-            var winRate = heroStats?.WinRate ?? 0.0;
-            var positions = GetViablePositions(heroStats);
-
-            displayList.Add(new FavoriteHeroDisplay
-            {
-                LocalizedName = hero.LocalizedName,
-                Roles = positions,
-                WinRate = winRate
-            });
-        }
-
+        var displayList = BuildFavoriteHeroesDisplayList(statsData);
         var sortedList = displayList.OrderByDescending(h => h.WinRate).ToList();
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"{"Hero",-25} {"Positions",-30} {"WinRate",10}");
-        Console.WriteLine(new string('-', 70));
-        Console.ResetColor();
-
-        foreach (var item in sortedList)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write($"{item.LocalizedName,-25}");
-            Console.ResetColor();
-
-            Console.Write(" ");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"{item.Roles,-30}");
-            Console.ResetColor();
-
-            Console.Write(" ");
-            SetWinRateColor(item.WinRate);
-            Console.Write($"{item.WinRate,9:0.00}%");
-            Console.ResetColor();
-
-            Console.WriteLine();
-        }
+        DisplayFavoriteHeroesTable(sortedList);
 
         Console.WriteLine();
     }
@@ -244,6 +201,48 @@ public class FavoriteHeroesMenu : IMenu
 
         Console.WriteLine("\nPress any key to continue...");
         Console.ReadKey();
+    }
+
+    private List<FavoriteHeroDisplay> BuildFavoriteHeroesDisplayList(DotabuffStatsData? statsData)
+    {
+        var displayList = new List<FavoriteHeroDisplay>();
+
+        foreach (var heroId in _favoriteHeroes!.HeroIds)
+        {
+            var hero = _heroes!.FirstOrDefault(h => h.Id == heroId);
+            if (hero == null) continue;
+
+            var heroStats = statsData?.Stats.FirstOrDefault(s => s.Id == heroId);
+            var winRate = heroStats?.WinRate ?? 0.0;
+            var positions = GetViablePositions(heroStats);
+
+            displayList.Add(new FavoriteHeroDisplay
+            {
+                LocalizedName = hero.LocalizedName,
+                Roles = positions,
+                WinRate = winRate
+            });
+        }
+
+        return displayList;
+    }
+
+    private void DisplayFavoriteHeroesTable(List<FavoriteHeroDisplay> heroes)
+    {
+        ConsoleHelper.WriteLineColored($"{"Hero",-25} {"Positions",-30} {"WinRate",10}", ConsoleColor.Cyan);
+        ConsoleHelper.WriteLineColored(new string('-', 70), ConsoleColor.Cyan);
+
+        foreach (var hero in heroes)
+        {
+            ConsoleHelper.WriteColored($"{hero.LocalizedName,-25}", ConsoleColor.Cyan);
+            Console.Write(" ");
+            ConsoleHelper.WriteColored($"{hero.Roles,-30}", ConsoleColor.Yellow);
+            Console.Write(" ");
+            SetWinRateColor(hero.WinRate);
+            Console.Write($"{hero.WinRate,9:0.00}%");
+            Console.ResetColor();
+            Console.WriteLine();
+        }
     }
 
     private string GetViablePositions(DotabuffHeroStats? heroStats)
