@@ -21,7 +21,7 @@ internal class Program
             var dotabuffStatsStorage = new JsonStorageService<DotabuffStatsData>("dotabuff-stats.json");
             using var dotabuffService = new DotabuffService(httpClient, heroStorageService, dotabuffStatsStorage);
 
-            var patchMenu = new PatchMenu(patchStorageService);
+            var patchMenu = new PatchMenu(patchStorageService, dotabuffStatsStorage);
 
             var currentPatch = patchStorageService.Load();
             if (currentPatch == null)

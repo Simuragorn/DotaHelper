@@ -9,9 +9,9 @@ public class JsonStorageService<T> : IStorageService<T> where T : class
 
     public JsonStorageService(string fileName)
     {
-        string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        string dotaHelperPath = Path.Combine(appDataPath, "DotaHelper");
-        _filePath = Path.Combine(dotaHelperPath, fileName);
+        string projectPath = Directory.GetCurrentDirectory();
+        string fetchedDataPath = Path.Combine(projectPath, "FetchedData");
+        _filePath = Path.Combine(fetchedDataPath, fileName);
 
         _options = new JsonSerializerOptions { WriteIndented = true };
     }
@@ -55,5 +55,20 @@ public class JsonStorageService<T> : IStorageService<T> where T : class
     public bool Exists()
     {
         return File.Exists(_filePath);
+    }
+
+    public void Delete()
+    {
+        try
+        {
+            if (File.Exists(_filePath))
+            {
+                File.Delete(_filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting data: {ex.Message}");
+        }
     }
 }

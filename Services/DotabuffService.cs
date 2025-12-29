@@ -337,27 +337,68 @@ public class DotabuffService : IDotabuffService, IDisposable
     {
         try
         {
-            string url = $"{BaseUrl}?show=heroes&view=meta&mode=all-pick&date={patchVersion}&position={position}";
-            var response = await _httpClient.GetAsync(url);
+            await EnsureBrowserInitializedAsync();
 
-            if (!response.IsSuccessStatusCode)
+            if (_browser == null)
             {
-                Console.WriteLine($"HTTP {response.StatusCode} for {position}");
+                Console.WriteLine("Browser not initialized");
                 return null;
             }
 
-            string html = await response.Content.ReadAsStringAsync();
+            var context = await _browser.NewContextAsync(new BrowserNewContextOptions
+            {
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
+                Locale = "en-US",
+                TimezoneId = "America/New_York",
+                ExtraHTTPHeaders = new Dictionary<string, string>
+                {
+                    ["Accept-Language"] = "en-US,en;q=0.9",
+                    ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                }
+            });
+
+            var page = await context.NewPageAsync();
+
+            string url = $"{BaseUrl}?show=heroes&view=meta&mode=all-pick&date={patchVersion}&position={position}";
+
+            var response = await page.GotoAsync(url, new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.Load,
+                Timeout = 60000
+            });
+
+            if (response == null || !response.Ok)
+            {
+                Console.WriteLine($"Navigation failed: {response?.Status ?? 0}");
+                await context.CloseAsync();
+                return null;
+            }
+
+            await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
+
+            await Task.Delay(2000);
+
+            await page.WaitForSelectorAsync("tbody tr", new PageWaitForSelectorOptions
+            {
+                Timeout = 15000,
+                State = WaitForSelectorState.Attached
+            });
+
+            string html = await page.ContentAsync();
+
+            await context.CloseAsync();
 
             return ParseHtmlTable(html);
         }
-        catch (HttpRequestException ex)
+        catch (TimeoutException)
         {
-            Console.WriteLine($"Network error: {ex.Message}");
+            Console.WriteLine("Request timeout while loading position stats page");
             return null;
         }
-        catch (TaskCanceledException)
+        catch (PlaywrightException ex)
         {
-            Console.WriteLine("Request timeout");
+            Console.WriteLine($"Browser error: {ex.Message}");
             return null;
         }
         catch (Exception ex)

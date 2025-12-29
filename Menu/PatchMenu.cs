@@ -6,10 +6,12 @@ namespace DotaHelper.Menu;
 public class PatchMenu : IMenu
 {
     private readonly IStorageService<Patch> _patchStorageService;
+    private readonly IStorageService<DotabuffStatsData> _statsStorageService;
 
-    public PatchMenu(IStorageService<Patch> patchStorageService)
+    public PatchMenu(IStorageService<Patch> patchStorageService, IStorageService<DotabuffStatsData> statsStorageService)
     {
         _patchStorageService = patchStorageService;
+        _statsStorageService = statsStorageService;
     }
 
     public void Display()
@@ -51,9 +53,11 @@ public class PatchMenu : IMenu
         };
 
         _patchStorageService.Save(patch);
+        _statsStorageService.Delete();
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"\n✓ Patch updated to: {patch.Version}");
+        Console.WriteLine("✓ Cached statistics cleared");
         Console.ResetColor();
 
         await Task.CompletedTask;
