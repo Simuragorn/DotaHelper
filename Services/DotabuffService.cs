@@ -153,7 +153,7 @@ public class DotabuffService : IDotabuffService, IDisposable
         _statsStorageService.Save(statsData);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n✓ Successfully fetched stats for {heroStats.Count} heroes");
+        Console.WriteLine($"\n✓ Successfully prepared list of {heroStats.Count} heroes");
         Console.ResetColor();
 
         return heroStats;
@@ -562,32 +562,53 @@ public class DotabuffService : IDotabuffService, IDisposable
                 PatchVersion = string.Empty
             };
 
+            double totalWeightedWinRate = 0;
+            double totalPickRate = 0;
+            double banRate = 0;
+
             if (positionData.ContainsKey("core-mid") && positionData["core-mid"].ContainsKey(heroName))
             {
-                stat.WinRate = positionData["core-mid"][heroName].WinRate;
-                stat.BanRate = positionData["core-mid"][heroName].BanRate;
-                stat.PickRateCoreMid = positionData["core-mid"][heroName].PickRate;
+                var midStats = positionData["core-mid"][heroName];
+                stat.PickRateCoreMid = midStats.PickRate;
+                totalWeightedWinRate += midStats.WinRate * midStats.PickRate;
+                totalPickRate += midStats.PickRate;
+                banRate = midStats.BanRate;
             }
 
             if (positionData.ContainsKey("core-safe") && positionData["core-safe"].ContainsKey(heroName))
             {
-                stat.PickRateCoreSafe = positionData["core-safe"][heroName].PickRate;
+                var safeStats = positionData["core-safe"][heroName];
+                stat.PickRateCoreSafe = safeStats.PickRate;
+                totalWeightedWinRate += safeStats.WinRate * safeStats.PickRate;
+                totalPickRate += safeStats.PickRate;
             }
 
             if (positionData.ContainsKey("core-off") && positionData["core-off"].ContainsKey(heroName))
             {
-                stat.PickRateCoreOff = positionData["core-off"][heroName].PickRate;
+                var offStats = positionData["core-off"][heroName];
+                stat.PickRateCoreOff = offStats.PickRate;
+                totalWeightedWinRate += offStats.WinRate * offStats.PickRate;
+                totalPickRate += offStats.PickRate;
             }
 
             if (positionData.ContainsKey("support-safe") && positionData["support-safe"].ContainsKey(heroName))
             {
-                stat.PickRateSupportSafe = positionData["support-safe"][heroName].PickRate;
+                var supSafeStats = positionData["support-safe"][heroName];
+                stat.PickRateSupportSafe = supSafeStats.PickRate;
+                totalWeightedWinRate += supSafeStats.WinRate * supSafeStats.PickRate;
+                totalPickRate += supSafeStats.PickRate;
             }
 
             if (positionData.ContainsKey("support-off") && positionData["support-off"].ContainsKey(heroName))
             {
-                stat.PickRateSupportOff = positionData["support-off"][heroName].PickRate;
+                var supOffStats = positionData["support-off"][heroName];
+                stat.PickRateSupportOff = supOffStats.PickRate;
+                totalWeightedWinRate += supOffStats.WinRate * supOffStats.PickRate;
+                totalPickRate += supOffStats.PickRate;
             }
+
+            stat.WinRate = totalPickRate > 0 ? totalWeightedWinRate / totalPickRate : 0;
+            stat.BanRate = banRate;
 
             heroStats.Add(stat);
         }

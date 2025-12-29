@@ -109,11 +109,11 @@ public class DraftMenu : IMenu
     private int? GetPositionInput()
     {
         Console.WriteLine("\nSelect counter pick position (1-5), or press Enter for all positions:");
-        Console.WriteLine("1 - Core Safe (Position 1)");
-        Console.WriteLine("2 - Core Mid (Position 2)");
-        Console.WriteLine("3 - Core Off (Position 3)");
-        Console.WriteLine("4 - Support Off (Position 4)");
-        Console.WriteLine("5 - Support Safe (Position 5)");
+        Console.WriteLine("1 - Core Safe");
+        Console.WriteLine("2 - Core Mid");
+        Console.WriteLine("3 - Core Off");
+        Console.WriteLine("4 - Support Off");
+        Console.WriteLine("5 - Support Safe");
         Console.Write("\nPosition: ");
 
         string? input = Console.ReadLine();

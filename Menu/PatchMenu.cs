@@ -76,13 +76,7 @@ public class PatchMenu : IMenu
 
         var fetchedStats = await _dotabuffService.FetchHeroStatsAsync(patch.Version);
 
-        if (fetchedStats != null && fetchedStats.Count > 0)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"✓ Successfully fetched statistics for {fetchedStats.Count} heroes");
-            Console.ResetColor();
-        }
-        else
+        if (fetchedStats == null || fetchedStats.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("✗ Failed to fetch statistics. You can try again from the main menu.");

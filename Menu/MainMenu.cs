@@ -8,10 +8,12 @@ public class MainMenu : IMenu
     private readonly DraftMenu _draftMenu;
     private readonly PatchMenu _patchMenu;
     private readonly CountersCacheMenu _countersCacheMenu;
+    private readonly FavoriteHeroesMenu _favoriteHeroesMenu;
     private readonly IStorageService<Patch> _patchStorageService;
     private readonly IStorageService<DotabuffStatsData> _dotabuffStatsStorageService;
     private readonly IDotabuffService _dotabuffService;
     private readonly IStorageService<List<Hero>> _heroStorageService;
+    private readonly IStorageService<FavoriteHeroes> _favoriteHeroesStorage;
     private bool _isFirstRun = true;
     private string? _currentPatch;
     private DateTime? _lastFetchedStats;
@@ -20,18 +22,22 @@ public class MainMenu : IMenu
         DraftMenu draftMenu,
         PatchMenu patchMenu,
         CountersCacheMenu countersCacheMenu,
+        FavoriteHeroesMenu favoriteHeroesMenu,
         IStorageService<Patch> patchStorageService,
         IStorageService<DotabuffStatsData> dotabuffStatsStorageService,
         IDotabuffService dotabuffService,
-        IStorageService<List<Hero>> heroStorageService)
+        IStorageService<List<Hero>> heroStorageService,
+        IStorageService<FavoriteHeroes> favoriteHeroesStorage)
     {
         _draftMenu = draftMenu;
         _patchMenu = patchMenu;
         _countersCacheMenu = countersCacheMenu;
+        _favoriteHeroesMenu = favoriteHeroesMenu;
         _patchStorageService = patchStorageService;
         _dotabuffStatsStorageService = dotabuffStatsStorageService;
         _dotabuffService = dotabuffService;
         _heroStorageService = heroStorageService;
+        _favoriteHeroesStorage = favoriteHeroesStorage;
     }
 
     public void Display()
@@ -110,9 +116,19 @@ public class MainMenu : IMenu
             Console.WriteLine();
         }
 
+        var favoriteHeroes = _favoriteHeroesStorage.Load();
+        int favoriteCount = favoriteHeroes?.HeroIds.Count ?? 0;
+
+        Console.Write("Favorite heroes: ");
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.Write($"{favoriteCount} heroes");
+        Console.ResetColor();
+        Console.WriteLine();
+
         Console.WriteLine("\n1. Draft");
-        Console.WriteLine("2. Change Patch");
-        Console.WriteLine("3. Cache Management");
+        Console.WriteLine("2. Favorite heroes management");
+        Console.WriteLine("3. Change Patch");
+        Console.WriteLine("4. Cache Management");
         Console.WriteLine("0. Exit");
         Console.Write("\nSelect an option: ");
     }
@@ -140,11 +156,14 @@ public class MainMenu : IMenu
                     await _draftMenu.ExecuteAsync();
                     break;
                 case "2":
+                    await _favoriteHeroesMenu.ExecuteAsync();
+                    break;
+                case "3":
                     await _patchMenu.ExecuteAsync();
                     LoadPatch();
                     LoadStatsTime();
                     break;
-                case "3":
+                case "4":
                     await _countersCacheMenu.ExecuteAsync();
                     break;
                 case "0":
