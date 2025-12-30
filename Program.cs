@@ -69,13 +69,6 @@ internal class Program
                     Console.WriteLine("No statistics found. Fetching from Dotabuff...");
                     Console.ResetColor();
                 }
-                else
-                {
-                    var daysSinceLastFetch = (DateTime.UtcNow - cachedData.LastFetched).Days;
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"Statistics are {daysSinceLastFetch} day(s) old. Fetching fresh data from Dotabuff...");
-                    Console.ResetColor();
-                }
 
                 var fetchedStats = await dotabuffService.FetchHeroStatsAsync(currentPatch?.Version ?? "");
 

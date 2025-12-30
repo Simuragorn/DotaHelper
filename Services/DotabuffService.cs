@@ -179,12 +179,6 @@ public class DotabuffService : IDotabuffService, IDisposable
             return false;
         }
 
-        var oneDayAgo = DateTime.UtcNow.AddDays(-1);
-        if (data.LastFetched < oneDayAgo)
-        {
-            return false;
-        }
-
         return true;
     }
 
